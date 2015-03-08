@@ -1,0 +1,10 @@
+[package]
+
+name = "planknn"
+version = "0.0.1"
+authors = ["Roderick Bovee <rbovee@gmail.com>"]
+
+[dependencies]
+#rblas = "0.0.1"
+#nalgebra = "0.2.4"
+rand = "*"

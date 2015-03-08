@@ -1,16 +1,23 @@
-import json
+import os
 import numpy as np
-from pyplanknn.layer import Layer, ConvPoolLayer
+from pyplanknn.layer import Layer
+from pyplanknn.helper import fromfile, tofile
 
 
 class Network:
     """
     A neural network comprised of several layers interconnected.
     """
-    def __init__(self, n_convs=10, hidden=4, n_outs=121):
+    def __init__(self, n_in=62500, hidden=2, n_outs=2):
         """
         Create a series of layers.
         """
+        if n_in is None:
+            # allow us to create an empty network we can fill
+            # with layers ourselves
+            self.layers = []
+            return
+
         if isinstance(hidden, int):
             args = hidden * [400] + [n_outs]
         else:
@@ -18,8 +25,7 @@ class Network:
 
         args = iter(args)
         prev = next(args)
-        self.layers = [ConvPoolLayer(n_convs)]
-        self.layers.append(Layer(25 * n_convs, prev, 'tanh'))
+        self.layers = [Layer(n_in, prev, 'tanh')]
         for i in args:
             self.layers.append(Layer(prev, i, 'logit'))
             prev = i
@@ -27,7 +33,7 @@ class Network:
         # add a softmax layer at the end
         self.layers.append(Layer(i, i, 'softmax'))
 
-    def __call__(self, vector, expected=None, learning_rate=1):
+    def __call__(self, vector, expected=None, learning_rate=0.1):
         """
         If only one argument is passed in, return the results of
         running the network on that vector.
@@ -42,31 +48,44 @@ class Network:
         if expected is not None:
             # back propogate errors and train layers
             error_out = vector - expected
-            for layer in reversed(self.layers):
-                new_error_out = layer.error_in(error_out)
+            for i, layer in reversed(list(enumerate(self.layers))):
+                if i != 0:
+                    new_error_out = layer.error_in(error_out)
                 layer.train(error_out, learning_rate)
                 error_out = new_error_out
 
         return vector
 
-    def save(self, filename):
+    def save(self, dirname):
         """
         Saves all layer weights as
         """
-        weights = {}
+        if not os.path.exists(dirname):
+            os.mkdir(dirname)
         for i, l in enumerate(self.layers):
-            weights[i] = l.weights.tolist()
-        open(filename, 'w').write(json.dumps(weights))
+            d = l.weights.shape[0]
+            filename = os.path.join(dirname, \
+                                    'weights_{:0=2d}_{}.npy'.format(i, d))
+            tofile(filename, l.weights)
 
 
-def load(filename):
-    weights = json.loads(open(filename, 'r').read())
-    n_layers = max(int(i) for i in weights.keys())
-    n_convs = np.array(weights['0']).shape[0]
-    n_outs = np.array(weights[str(n_layers)]).shape[1]
-    hidden = [np.array(weights[str(w)]).shape[1] for w \
-              in range(1, n_layers - 1)]
-    network = Network(n_convs, hidden, n_outs)
-    for i in range(n_layers + 1):
-        network.layers[i].weights = np.array(weights[str(i)])
+def load(dirname):
+    weight_files = [f for f in os.listdir(dirname) if f.startswith('weights_')]
+    weight_files = sorted(weight_files, key=lambda x: int(x[8:10]))
+    network = Network(None)
+
+    for i, filename in enumerate(weight_files):
+        d = int(filename[11:-4])
+        weights = fromfile(os.path.join(dirname, filename), np.float16)
+
+        if i == 0:
+            l = Layer(1, 1, 'tanh')
+        elif i == len(weight_files) - 1:
+            l = Layer(1, 1, 'softmax')
+        else:
+            l = Layer(1, 1, 'logit')
+        l.weights = weights.reshape((d, weights.shape[0] // d))
+        l.momentum = np.zeros_like(l.weights)
+        network.layers.append(l)
+
     return network

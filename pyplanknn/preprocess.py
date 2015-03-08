@@ -1,6 +1,11 @@
 import os
 import numpy as np
-import cv2
+from pyplanknn.helper import fromfile
+try:
+    import cv2
+except ImportError:
+    # running in pypy after preprocessing is complete
+    pass
 
 THRESHOLD = 254
 DIL_MASK = np.ones((4, 4)).astype(np.uint8)
@@ -107,16 +112,17 @@ def preprocess_test(test_dir):
 
 
 def read_train():
-    X = np.fromfile(os.path.join(DPATH, 'x_train.npy'), dtype=np.uint8)
+    X = fromfile(os.path.join(DPATH, 'x_train.npy'), dtype=np.uint8)
     X = np.reshape(X, (X.shape[0] // (MAX_X * MAX_Y), MAX_X, MAX_Y))
 
-    y = np.fromfile(os.path.join(DPATH, 'y_train.npy'), dtype=np.uint8)
+    y = fromfile(os.path.join(DPATH, 'y_train.npy'), dtype=np.uint8)
 
     return X, y
 
 
 def read_test():
-    X = np.fromfile(os.path.join(DPATH, 'x_test.npy'), dtype=np.uint8)
+    X = fromfile(os.path.join(DPATH, 'x_test.npy'), dtype=np.uint8)
+    #X = np.fromfile(os.path.join(DPATH, 'x_test.npy'), dtype=np.uint8)
     np.reshape(X, (X.shape[0] / (MAX_X * MAX_Y), MAX_X, MAX_Y))
     return X
 
