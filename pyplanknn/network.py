@@ -8,7 +8,7 @@ class Network:
     """
     A neural network comprised of several layers interconnected.
     """
-    def __init__(self, n_in=62500, hidden=2, n_outs=2):
+    def __init__(self, n_in=62500, hidden=2, n_outs=121):
         """
         Create a series of layers.
         """
@@ -27,7 +27,7 @@ class Network:
         prev = next(args)
         self.layers = [Layer(n_in, prev, 'tanh')]
         for i in args:
-            self.layers.append(Layer(prev, i, 'logit'))
+            self.layers.append(Layer(prev, i, 'tanh'))
             prev = i
 
         # add a softmax layer at the end
@@ -49,10 +49,10 @@ class Network:
             # back propogate errors and train layers
             error_out = vector - expected
             for i, layer in reversed(list(enumerate(self.layers))):
-                if i != 0:
-                    new_error_out = layer.error_in(error_out)
+                new_error_out = layer.error_in(error_out)
                 layer.train(error_out, learning_rate)
                 error_out = new_error_out
+            vector = (vector, error_out)
 
         return vector
 
@@ -70,18 +70,24 @@ class Network:
 
 
 def load(dirname):
+    if not os.path.exists(dirname):
+        return None
+
     weight_files = [f for f in os.listdir(dirname) if f.startswith('weights_')]
     weight_files = sorted(weight_files, key=lambda x: int(x[8:10]))
     network = Network(None)
 
+    if len(weight_files) == 0:
+        return None
+
     for i, filename in enumerate(weight_files):
         d = int(filename[11:-4])
-        weights = fromfile(os.path.join(dirname, filename), np.float16)
+        weights = fromfile(os.path.join(dirname, filename), np.float32)
 
         if i == 0:
             l = Layer(1, 1, 'tanh')
         elif i == len(weight_files) - 1:
-            l = Layer(1, 1, 'softmax')
+            l = Layer(1, 1, 'tanh')
         else:
             l = Layer(1, 1, 'logit')
         l.weights = weights.reshape((d, weights.shape[0] // d))

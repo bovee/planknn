@@ -47,14 +47,23 @@ fn test_error() {
     assert_eq!(err_grad.len(), 6);
 }
 
+// TODO: either need to split out input and f_input or
+// make weights a reference so we can use this in parallel threads
 pub struct Layer<T> where T: Float {
     n_inputs: usize,
     n_outputs: usize,
     input: Vec<T>,
-    f_input: Vec<T>,
     pub weights: Vec<T>,
+
+    f_input: Vec<T>,
     func: Box<Fn(T) -> T>,
     dfunc: Box<Fn(T) -> T>,
+}
+
+pub trait NeuralLayer<T> {
+    pub fn new(n_inputs: usize, n_outputs: usize) -> Layer<f32>;
+    pub fn forward(&mut self, data: &Vec<f32>) -> Vec<f32>;
+    pub fn train(&mut self, weight_gradient: &Vec<f32>);
 }
 
 impl Layer<f32> { //where T: Float + rand::Rand

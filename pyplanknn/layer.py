@@ -23,15 +23,18 @@ class Layer:
             self.f = lambda x: np.exp(x) / np.sum(np.exp(x), axis=1)[:, None]
             self.df = lambda x: np.ones(x.shape)
         elif func == 'relu':
-            self.f = lambda x: x if x > 0 else 0
-            self.df = lambda x: 1 if x > 0 else 0
+            self.f = lambda x: np.where(x > 0, x, 0)
+            self.df = lambda x: np.where(x > 0, x, 1)
         else:
             self.f = lambda x: x
             self.df = lambda x: 1
 
-        self.weights = np.random.normal(0, 0.1 / np.log(inputs), \
-                                        (inputs + 1, outputs))
-        self.weights = self.weights.astype(np.float16)
+        #self.weights = np.random.normal(0, 0.1 / np.log(inputs * outputs), \
+        #                                (inputs + 1, outputs))
+        self.weights = np.random.normal(0, 1 / np.sqrt(inputs * outputs), (inputs + 1, outputs))
+        # deemphasize the bias terms
+        self.weights[:, 0] /= 100.
+        self.weights = self.weights.astype(np.float32)
         self.momentum = np.zeros_like(self.weights)
 
     def __call__(self, vector):

@@ -1,62 +1,75 @@
 from __future__ import print_function
-import os
 import random
 import numpy as np
-from pyplanknn.helper import fromfile
 from pyplanknn.preprocess import read_train
 from pyplanknn.network import Network, load
+from pyplanknn.submit import multiclass_log_loss
 
 TRAIN_N = 1
-
-print('Loading Network')
-dirname = 'network_{:0=3d}'.format(TRAIN_N)
-if os.path.exists(dirname):
-    network = load(dirname)
-else:
-    network = Network()
+N_TRAINS = 60
+N_RANDS = 1
 
 print('Loading Data')
 # smaller files sampled from full data to allow faster startup
-x1 = fromfile('network_001/featdata.npy', dtype=np.uint8).reshape((13, 250, 250))
-xo = fromfile('network_001/otherdata.npy', dtype=np.uint8).reshape((300, 250, 250))
-#x, y = read_train()
-#x1 = x[y == TRAIN_N]
-#xo = x[y != TRAIN_N]
-l = len(x1)  # number of cases to use
+x, x_class = read_train()
+y = np.zeros((x_class.shape[0], 121))
+for i, c in enumerate(x_class):
+    y[i, c] = 1.
 
-y = np.zeros((l, 2))
-y[:, 0] = 1
+print('Loading Network')
+dirname = 'network_{:0=3d}'.format(TRAIN_N)
+network = load(dirname)
+if network is None:
+    print('Create New Network')
+    network = Network()
+    for i in range(121):
+        network.layers[0].weights[1:, i] += \
+            0.01 * (x[x_class == i].mean(axis=0).flatten() - 127.5) / 127.5
 
 print('Starting Training')
 
-for i in range(10):
-    # make xn the same length as x1 and add it on the end
-    x_train = x1[random.sample(range(len(x1)), l)]
-    x_train = x_train[:, \
-                      random.choice((slice(None, None, 1), \
-                                     slice(None, None, -1))), \
-                      random.choice((slice(None, None, 1), \
-                                     slice(None, None, -1)))]
-    p = network(x_train.reshape(l, 62500) / 255 - 0.5, y, 0.1)
+training = np.empty((121, N_TRAINS), dtype=int)
+for i in range(121):
+    training[i] = np.random.choice(np.nonzero(x_class == i)[0], \
+                                   N_TRAINS, replace=True)
 
-    print('Trained', i, np.sum(p, axis=0) / l)
-    x_train = xo[random.sample(range(len(xo)), l)]
+for i in range(N_TRAINS):
+    # adding in noisy samples is equivalent to an L2 penalty on our weights
+    x_train = np.concatenate((x[training[:, i]], \
+                              np.random.random((N_RANDS, 250, 250))), axis=0)
+    y_train = np.concatenate((np.eye(121), \
+                              np.ones((N_RANDS, 121)) / 121.), axis=0)
+    #y_train = np.concatenate((y[training[:, i]], \
+    #                          np.ones((N_RANDS, 121)) / 121.), axis=0)
+
+    # randomly flip images
     x_train = x_train[:, \
                       random.choice((slice(None, None, 1), \
                                      slice(None, None, -1))), \
                       random.choice((slice(None, None, 1), \
                                      slice(None, None, -1)))]
-    p = network(x_train.reshape(l, 62500) / 255 - 0.5, 1 - y, 0.01)
-    print('Untrained', i, np.sum(p, axis=0) / l)
+
+    x_train = (x_train - 127.5).reshape(-1, 62500)
+    x_train /= 127.5
+
+    res, _ = network(x_train, y_train, 0.01)
+
+    print('Trained', i, multiclass_log_loss(np.arange(121), res[:121]))
 
 print('Saving')
-network.save('network_001')
+network.save(dirname)
 
 
-def plot_weights():
+def plot_weights(network):
     import matplotlib.pyplot as plt
-    WGT_NUM = 0
-
-    a = fromfile('weights_00_62501.npy', dtype=np.float16)
-    plt.imshow(a.reshape((62501, 400))[1:, WGT_NUM].reshape((250, 250)))
+    w = network.layers[0].weights.reshape((62501, 400))[1:]
+    sw = np.sum(w[:, :121], axis=1)
+    plt.subplot(2, 1, 1)
+    plt.imshow(sw.reshape((250, 250)))
+    plt.subplot(2, 1, 2)
+    sw = np.sum(w[:, 121:], axis=1)
+    plt.imshow(sw.reshape((250, 250)))
+    #WGT_NUM = 0
+    #w = network.layers[0].weights
+    #plt.imshow(w.reshape((62501, 400))[1:, WGT_NUM].reshape((250, 250)))
     plt.show()

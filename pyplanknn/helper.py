@@ -2,7 +2,7 @@
 import numpy as np
 
 
-def fromfile(filename, dtype=np.float16):
+def fromfile(filename, dtype=np.float32):
     # helper function to allow us to run under pypy
     try:
         return np.fromfile(filename, dtype=dtype)
