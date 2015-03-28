@@ -8,7 +8,7 @@ class Network:
     """
     A neural network comprised of several layers interconnected.
     """
-    def __init__(self, n_in=62500, hidden=2, n_outs=121):
+    def __init__(self, n_in=62500, hidden=4, n_outs=121):
         """
         Create a series of layers.
         """
@@ -19,7 +19,7 @@ class Network:
             return
 
         if isinstance(hidden, int):
-            args = hidden * [400] + [n_outs]
+            args = hidden * [500] + [n_outs]
         else:
             args = hidden + [n_outs]
 
@@ -87,9 +87,9 @@ def load(dirname):
         if i == 0:
             l = Layer(1, 1, 'tanh')
         elif i == len(weight_files) - 1:
-            l = Layer(1, 1, 'tanh')
+            l = Layer(1, 1, 'softmax')
         else:
-            l = Layer(1, 1, 'logit')
+            l = Layer(1, 1, 'tanh')
         l.weights = weights.reshape((d, weights.shape[0] // d))
         l.momentum = np.zeros_like(l.weights)
         network.layers.append(l)

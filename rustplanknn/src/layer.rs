@@ -60,11 +60,11 @@ pub struct Layer<T> where T: Float {
     dfunc: Box<Fn(T) -> T>,
 }
 
-pub trait NeuralLayer<T> {
-    pub fn new(n_inputs: usize, n_outputs: usize) -> Layer<f32>;
-    pub fn forward(&mut self, data: &Vec<f32>) -> Vec<f32>;
-    pub fn train(&mut self, weight_gradient: &Vec<f32>);
-}
+//pub trait NeuralLayer<T> {
+//    pub fn new(n_inputs: usize, n_outputs: usize) -> Layer<f32>;
+//    pub fn forward(&mut self, data: &Vec<f32>) -> Vec<f32>;
+//    pub fn train(&mut self, weight_gradient: &Vec<f32>);
+//}
 
 impl Layer<f32> { //where T: Float + rand::Rand
     pub fn new(n_inputs: usize, n_outputs: usize) -> Layer<f32> {

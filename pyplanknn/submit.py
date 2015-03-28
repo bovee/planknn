@@ -1,7 +1,7 @@
 import os
 import numpy as np
+from sklearn.metrics import log_loss
 from pyplanknn.preprocess import read_train, read_test, read_meta, DPATH
-from pyplanknn.monitoring import multiclass_log_loss
 
 
 def run_model(model):
@@ -48,5 +48,5 @@ def check_model(Model):
         i += 1
 
     print(classification_report(y, y_pred, target_names=classes))
-    print(multiclass_log_loss(y, y_pred2))
+    print(log_loss(y, y_pred2))
     return y_pred, y_pred2

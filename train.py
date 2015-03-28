@@ -1,12 +1,12 @@
 from __future__ import print_function
 import random
 import numpy as np
+from sklearn.metrics import log_loss
 from pyplanknn.preprocess import read_train
 from pyplanknn.network import Network, load
-from pyplanknn.submit import multiclass_log_loss
 
-TRAIN_N = 1
-N_TRAINS = 60
+NETWORK_N = 2
+N_TRAINS = 5
 N_RANDS = 1
 
 print('Loading Data')
@@ -17,7 +17,7 @@ for i, c in enumerate(x_class):
     y[i, c] = 1.
 
 print('Loading Network')
-dirname = 'network_{:0=3d}'.format(TRAIN_N)
+dirname = 'network_{:0=3d}'.format(NETWORK_N)
 network = load(dirname)
 if network is None:
     print('Create New Network')
@@ -27,11 +27,12 @@ if network is None:
             0.01 * (x[x_class == i].mean(axis=0).flatten() - 127.5) / 127.5
 
 print('Starting Training')
-
 training = np.empty((121, N_TRAINS), dtype=int)
 for i in range(121):
     training[i] = np.random.choice(np.nonzero(x_class == i)[0], \
                                    N_TRAINS, replace=True)
+
+MIN_LR = 0.1
 
 for i in range(N_TRAINS):
     # adding in noisy samples is equivalent to an L2 penalty on our weights
@@ -52,9 +53,11 @@ for i in range(N_TRAINS):
     x_train = (x_train - 127.5).reshape(-1, 62500)
     x_train /= 127.5
 
-    res, _ = network(x_train, y_train, 0.01)
+    # scaled between 1 and 0.05
+    lr = np.exp(-0.01 * i - np.log(1. - MIN_LR)) + MIN_LR
+    res, _ = network(x_train, y_train, lr)
 
-    print('Trained', i, multiclass_log_loss(np.arange(121), res[:121]))
+    print('Trained', i, log_loss(np.arange(121), res[:121]))
 
 print('Saving')
 network.save(dirname)
